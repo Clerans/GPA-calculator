@@ -20,13 +20,18 @@ class GPAGauge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFE0E5EC),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.white,
+            offset: Offset(-8, -8),
+            blurRadius: 16,
+          ),
+          BoxShadow(
+            color: Color(0xFFA3B1C6),
+            offset: Offset(8, 8),
+            blurRadius: 16,
           ),
         ],
       ),
@@ -44,8 +49,8 @@ class GPAGauge extends StatelessWidget {
                     size: const Size(200, 200),
                     painter: _GaugePainter(
                       percentage: (gpa / maxGpa).clamp(0.0, 1.0),
-                      trackColor: const Color(0xFFF0F0F0),
-                      gradientColors: const [Color(0xFF6A11CB), Color(0xFF2575FC)],
+                      trackColor: const Color(0xFFD1D9E6), // Slightly darker than bg for track/groove
+                      gradientColors: const [Color(0xFF26C6DA), Color(0xFF00ACC1)], // Cyan Gradient
                     ),
                   ),
                 ),
@@ -106,21 +111,19 @@ class GPAGauge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? const Color(0xFFE0E5EC) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                  )
+              ? const [
+                   BoxShadow(color: Colors.white, offset: Offset(-3, -3), blurRadius: 6),
+                   BoxShadow(color: Color(0xFFA3B1C6), offset: Offset(3, 3), blurRadius: 6),
                 ]
               : null,
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: isSelected ? const Color(0xFF6A11CB) : Colors.grey,
+            color: isSelected ? const Color(0xFF00ACC1) : const Color(0xFF4E586E),
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),

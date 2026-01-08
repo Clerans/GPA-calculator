@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'course_model.dart';
 import 'semester_model.dart';
 import 'grade_converter.dart';
-import 'widgets/gpa_gauge.dart';
+import 'widgets/gradient_summary_card.dart';
 import 'services/pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -23,10 +23,17 @@ class GPACalculatorApp extends StatelessWidget {
           seedColor: Colors.deepPurple,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA), // Light Grey Modern Background
         cardTheme: const CardThemeData(
           color: Colors.white,
           elevation: 0,
+        ),
+        appBarTheme: const AppBarTheme(
+           backgroundColor: Colors.white,
+           elevation: 0,
+           scrolledUnderElevation: 0,
+           titleTextStyle: TextStyle(color: Color(0xFF2D3436), fontSize: 20, fontWeight: FontWeight.bold),
+           iconTheme: IconThemeData(color: Color(0xFF2D3436)),
         ),
       ),
       home: const HomePage(),
@@ -108,26 +115,67 @@ class _HomePageState extends State<HomePage> {
     return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
   }
 
+  double _calculateTotalCredits() {
+    double total = 0;
+    for (var semester in _semesters) {
+      for (var course in semester.courses) {
+        total += double.tryParse(course.creditsController.text) ?? 0;
+      }
+    }
+    return total;
+  }
+
+  int _calculateTotalCourses() {
+    int total = 0;
+    for (var semester in _semesters) {
+      total += semester.courses.length;
+    }
+    return total;
+  }
+
+  String _getLetterGrade(double gpa) {
+    if (gpa >= 4.0) return 'A+';
+    if (gpa >= 3.7) return 'A';
+    if (gpa >= 3.3) return 'B+'; // Approximation, usually mapped from points but simpler here
+    if (gpa >= 3.0) return 'B';
+    if (gpa >= 2.0) return 'C';
+    if (gpa >= 1.0) return 'D';
+    return gpa > 0 ? 'F' : '-';
+  }
+
   @override
   Widget build(BuildContext context) {
     double currentGPA = _calculateGPA();
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final pdfData = await PdfService.generatePdf(
-            semesters: _semesters,
-            cumulativeGpa: _calculateGPA(),
-            isWeighted: _isWeighted,
-          );
-          await Printing.layoutPdf(
-            onLayout: (PdfPageFormat format) async => pdfData,
-            name: 'GPA_Report.pdf',
-          );
-        },
-        icon: const Icon(Icons.picture_as_pdf),
-        label: const Text('Export PDF'),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+             Text('GPA Calculator'),
+             Text('Track your academic progress', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
+          ],
+        ),
+        actions: [
+           IconButton(
+             icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF2D3436)),
+             onPressed: () async {
+                final pdfData = await PdfService.generatePdf(
+                  semesters: _semesters,
+                  cumulativeGpa: _calculateGPA(),
+                  isWeighted: _isWeighted,
+                );
+                await Printing.layoutPdf(
+                  onLayout: (PdfPageFormat format) async => pdfData,
+                  name: 'GPA_Report.pdf',
+                );
+             },
+           ),
+           const SizedBox(width: 8),
+        ],
       ),
+      // Removed FloatingActionButton to use standard UI or put in AppBar
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -135,21 +183,16 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header / GPA Card
-              GPAGauge(
+              GradientSummaryCard(
                 gpa: currentGPA,
-                maxGpa: _isWeighted ? 5.0 : 4.0,
-                isWeighted: _isWeighted,
-                onToggleWeighted: (value) {
-                  setState(() {
-                    _isWeighted = value;
-                  });
-                },
+                totalCredits: _calculateTotalCredits(),
+                letterGrade: _getLetterGrade(currentGPA),
               ),
               const SizedBox(height: 24),
 
-              const Text(
-                'Semesters',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Text(
+                'Your Courses (${_calculateTotalCourses()})',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
               ),
               const SizedBox(height: 12),
 
@@ -159,12 +202,21 @@ class _HomePageState extends State<HomePage> {
                 itemCount: _semesters.length,
                 itemBuilder: (context, semesterIndex) {
                   final semester = _semesters[semesterIndex];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                         BoxShadow(
+                           color: Colors.black.withOpacity(0.05),
+                           blurRadius: 10,
+                           offset: const Offset(0, 4),
+                         ),
+                      ],
+                    ),
+                    child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -172,81 +224,142 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               Text(
                                 semester.name.toUpperCase(),
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4E586E)),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.add, color: Colors.green),
+                                icon: const Icon(Icons.add, color: Color(0xFF26C6DA)), // Cyan
                                 onPressed: () => _addCourse(semester),
                               ),
                             ],
                           ),
-                          const Divider(),
+                          const Divider(color: Colors.white), // Light divider looks engraved
                           ...semester.courses.asMap().entries.map((entry) {
                             int courseIndex = entry.key;
                             Course course = entry.value;
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: Row(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Column(
                                 children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildTextField(course.nameController, 'Name'),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: _buildModernField(course.nameController, 'Course Name'),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      IconButton(
+                                         icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                         onPressed: () => _removeCourse(semester, courseIndex),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildDropdown(
-                                      course.grade,
-                                      _gradeOptions,
-                                      (v) => setState(() => course.grade = v),
-                                      hint: 'Gr',
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildTextField(
-                                      course.creditsController,
-                                      'Cr',
-                                      numeric: true,
-                                      onChanged: (v) => setState(() {}),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildDropdown(
-                                      course.courseType,
-                                      _courseTypes,
-                                      (v) => setState(() => course.courseType = v!),
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                                    onPressed: () => _removeCourse(semester, courseIndex),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      // Grade
+                                      Expanded(
+                                        flex: 2,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Grade', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                            const SizedBox(height: 4),
+                                            _buildModernDropdown(
+                                              course.grade,
+                                              _gradeOptions,
+                                              (v) => setState(() => course.grade = v),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Credits
+                                      Expanded(
+                                        flex: 2,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Credits', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                            const SizedBox(height: 4),
+                                            _buildModernField(
+                                              course.creditsController,
+                                              '0',
+                                              numeric: true,
+                                              onChanged: (v) => setState(() {}),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                         flex: 2,
+                                         child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Type', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                              const SizedBox(height: 4),
+                                              _buildModernDropdown(
+                                                course.courseType,
+                                                _courseTypes,
+                                                (v) => setState(() => course.courseType = v!),
+                                                fontSize: 12,
+                                              ),
+                                            ],
+                                         ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             );
-                          }),
+                          }).toList(),
                         ],
                       ),
-                    ),
-                  );
+                    );
                 },
               ),
 
-              Center(
-                child: TextButton.icon(
-                  onPressed: _addSemester,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Semester'),
+              const SizedBox(height: 24),
+              
+              // Gradient Add Semester Button
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2979FF), Color(0xFF7C4DFF)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2979FF).withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _addSemester,
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.add, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Add Semester', 
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(height: 40),
               const SizedBox(height: 40),
             ],
           ),
@@ -257,39 +370,46 @@ class _HomePageState extends State<HomePage> {
 
 
 
-  Widget _buildTextField(TextEditingController controller, String hint, {bool numeric = false, Function(String)? onChanged}) {
-    return TextField(
-      controller: controller,
-      keyboardType: numeric ? TextInputType.number : TextInputType.text,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: const Color(0xFFF9F9F9),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+
+
+  Widget _buildModernField(TextEditingController controller, String hint, {bool numeric = false, Function(String)? onChanged}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: numeric ? TextInputType.number : TextInputType.text,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 14, color: Color(0xFF2D3436), fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          isDense: true,
         ),
       ),
     );
   }
 
-  Widget _buildDropdown(String? value, List<String> items, Function(String?) onChanged, {String? hint, double fontSize = 13}) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: fontSize)))).toList(),
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: const Color(0xFFF9F9F9),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+  Widget _buildModernDropdown(String? value, List<String> items, Function(String?) onChanged, {String? hint, double fontSize = 14}) {
+     return Container(
+       decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: fontSize, color: const Color(0xFF2D3436), fontWeight: FontWeight.w500)))).toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hint,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
+        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF2D3436)),
       ),
     );
   }
