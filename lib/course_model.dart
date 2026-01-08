@@ -4,6 +4,7 @@ class Course {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController creditsController = TextEditingController();
   String? grade;
+  String courseType; // 'Regular', 'Honors', 'AP'
 
-  Course({this.grade});
+  Course({this.grade, this.courseType = 'Regular'});
 }

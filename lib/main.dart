@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'course_model.dart';
+import 'semester_model.dart';
 import 'grade_converter.dart';
-import 'summary_screen.dart';
-
 
 void main() {
   runApp(const GPACalculatorApp());
@@ -16,8 +15,15 @@ class GPACalculatorApp extends StatelessWidget {
     return MaterialApp(
       title: 'University GPA Calculator',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+        ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+        ),
       ),
       home: const HomePage(),
     );
@@ -32,10 +38,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _formKey = GlobalKey<FormState>();
-  final List<Course> _courses = [];
+  final List<Semester> _semesters = [];
+  bool _isWeighted = false;
 
-  // Standard Grading Scale
   final List<String> _gradeOptions = [
     'A+', 'A', 'A-', 
     'B+', 'B', 'B-', 
@@ -43,254 +48,287 @@ class _HomePageState extends State<HomePage> {
     'D', 'F'
   ];
 
-  double _gpa = 0.0;
-
-  void _calculateGPA() {
-    // Only calculate if form is valid or if we are just typing (parsing handles safety)
-    // However, specifically for the final GPA to be meaningful, inputs should be valid.
-    // For real-time updates, we can try to parse. 
-    // If strict validation is required before showing GPA, we check formKey.currentState.validate()
-    // But validating on every keystroke might be annoying visually if fields turn red while typing.
-    // Let's rely on individual field validation for UI feedback, and best-effort calculation.
-    
-    double totalPoints = 0;
-    double totalCredits = 0;
-
-    for (var course in _courses) {
-      double credits = double.tryParse(course.creditsController.text) ?? 0;
-      // Skip if credits are 0 or less (effectively invalid for GPA)
-      if (credits <= 0) continue; 
-      
-      if (course.grade != null) {
-        double points = GradeConverter.convertToPoints(course.grade!);
-        totalPoints += points * credits;
-        totalCredits += credits;
-      }
-    }
-
-    setState(() {
-      _gpa = totalCredits > 0 ? totalPoints / totalCredits : 0.0;
-    });
-  }
+  final List<String> _courseTypes = ['Regular', 'Honors', 'AP'];
 
   @override
   void initState() {
     super.initState();
-    // Start with one empty course for convenience
-    _addCourse();
+    _addSemester();
   }
 
-  void _addCourse() {
+  void _addSemester() {
     setState(() {
-      _courses.add(Course());
-    });
-    _courses.last.creditsController.addListener(_calculateGPA);
-  }
-
-  void _removeCourse(int index) {
-    _courses[index].creditsController.removeListener(_calculateGPA);
-    setState(() {
-      _courses.removeAt(index);
-      _calculateGPA();
+      _semesters.add(Semester(name: 'Semester ${_semesters.length + 1}'));
+      _addCourse(_semesters.last);
     });
   }
 
-  @override
-  void dispose() {
-    // Dispose controllers to avoid memory leaks
-    for (var course in _courses) {
-      course.nameController.dispose();
-      course.creditsController.dispose();
+  void _addCourse(Semester semester) {
+    setState(() {
+      semester.courses.add(Course());
+    });
+  }
+
+  void _removeCourse(Semester semester, int index) {
+    setState(() {
+      semester.courses.removeAt(index);
+    });
+  }
+
+  double _calculateGPA() {
+    double totalPoints = 0;
+    double totalCredits = 0;
+
+    for (var semester in _semesters) {
+      for (var course in semester.courses) {
+        double credits = double.tryParse(course.creditsController.text) ?? 0;
+        if (credits <= 0) continue;
+
+        if (course.grade != null) {
+          double points = GradeConverter.convertToPoints(course.grade!);
+          
+          if (_isWeighted) {
+            if (course.courseType == 'Honors') {
+              points += 0.5;
+            } else if (course.courseType == 'AP') {
+              points += 1.0;
+            }
+          }
+
+          totalPoints += points * credits;
+          totalCredits += credits;
+        }
+      }
     }
-    super.dispose();
+
+    return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
   }
 
   @override
   Widget build(BuildContext context) {
+    double currentGPA = _calculateGPA();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('University GPA Calculator'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.list_alt),
-            tooltip: 'Summary',
-            onPressed: () {
-               if (_formKey.currentState!.validate()) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SummaryScreen(
-                        gpa: _gpa,
-                        courses: _courses,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header / GPA Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Your GPA',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      currentGPA.toStringAsFixed(2),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                   const SnackBar(content: Text('Please fix errors before viewing summary')),
-                 );
-               }
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'GPA:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                _gpa.toStringAsFixed(2),
-                style: const TextStyle(
-                  fontSize: 24, 
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
+                    const SizedBox(height: 16),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildToggleOption('Weighted', _isWeighted),
+                          _buildToggleOption('Unweighted', !_isWeighted),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SummaryScreen(
-                          gpa: _gpa,
-                          courses: _courses,
-                        ),
-                      ),
-                    );
-                  } else {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       const SnackBar(content: Text('Fix errors first')),
-                     );
-                  }
-                },
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Summary'),
-              )
-            ],
-          ),
-        ),
-      ),
-      body: _courses.isEmpty
-          ? Center(
-              child: Text(
-                'Add a course to get started',
-                style: Theme.of(context).textTheme.bodyLarge,
+              const SizedBox(height: 24),
+
+              const Text(
+                'Semesters',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-            )
-          : Form(
-              key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: _courses.length,
-                itemBuilder: (context, index) {
+              const SizedBox(height: 12),
+
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _semesters.length,
+                itemBuilder: (context, semesterIndex) {
+                  final semester = _semesters[semesterIndex];
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 12.0),
+                    margin: const EdgeInsets.only(bottom: 16.0),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
-                      child: Row(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Course Name Input
-                          Expanded(
-                            flex: 3,
-                            child: TextFormField(
-                              controller: _courses[index].nameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Course Name',
-                                hintText: 'e.g. Math 101',
-                                border: OutlineInputBorder(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                semester.name.toUpperCase(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          
-                          // Credits Input
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: _courses[index].creditsController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Credits',
-                                hintText: '3',
-                                border: OutlineInputBorder(),
+                              IconButton(
+                                icon: const Icon(Icons.add, color: Colors.green),
+                                onPressed: () => _addCourse(semester),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Required';
-                                }
-                                final v = double.tryParse(value);
-                                if (v == null || v <= 0) {
-                                  return 'Valid > 0';
-                                }
-                                return null;
-                              },
-                            ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-
-                          // Grade Dropdown
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<String>(
-                              value: _courses[index].grade,
-                              decoration: const InputDecoration(
-                                labelText: 'Grade',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                          const Divider(),
+                          ...semester.courses.asMap().entries.map((entry) {
+                            int courseIndex = entry.key;
+                            Course course = entry.value;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Row(
+                                children: [
+                                  // Name
+                                  Expanded(
+                                    flex: 3,
+                                    child: _buildTextField(course.nameController, 'Name'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Grade
+                                  Expanded(
+                                    flex: 2,
+                                    child: _buildDropdown(
+                                      course.grade,
+                                      _gradeOptions,
+                                      (v) => setState(() => course.grade = v),
+                                      hint: 'Gr',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Credits
+                                  Expanded(
+                                    flex: 2,
+                                    child: _buildTextField(
+                                      course.creditsController,
+                                      'Cr',
+                                      numeric: true,
+                                      onChanged: (v) => setState(() {}),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Type
+                                  Expanded(
+                                    flex: 3,
+                                    child: _buildDropdown(
+                                      course.courseType,
+                                      _courseTypes,
+                                      (v) => setState(() => course.courseType = v!),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                                    onPressed: () => _removeCourse(semester, courseIndex),
+                                  ),
+                                ],
                               ),
-                              items: _gradeOptions.map((String grade) {
-                                return DropdownMenuItem<String>(
-                                  value: grade,
-                                  child: Text(grade),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  _courses[index].grade = newValue;
-                                  _calculateGPA();
-                                });
-                              },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Select';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          
-                          // Delete Button
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _removeCourse(index),
-                          ),
+                            );
+                          }),
                         ],
                       ),
                     ),
                   );
                 },
               ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCourse,
-        tooltip: 'Add Course',
-        child: const Icon(Icons.add),
+
+              Center(
+                child: TextButton.icon(
+                  onPressed: _addSemester,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Semester'),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleOption(String text, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isWeighted = (text == 'Weighted');
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? Colors.purple : Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String hint, {bool numeric = false, Function(String)? onChanged}) {
+    return TextField(
+      controller: controller,
+      keyboardType: numeric ? TextInputType.number : TextInputType.text,
+      onChanged: onChanged,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFF9F9F9),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String? value, List<String> items, Function(String?) onChanged, {String? hint, double fontSize = 13}) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: fontSize)))).toList(),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFF9F9F9),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
