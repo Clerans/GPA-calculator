@@ -189,6 +189,42 @@ class _HomePageState extends State<HomePage> {
                 letterGrade: _getLetterGrade(currentGPA),
               ),
               const SizedBox(height: 24),
+              
+              // Weighted Toggle
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                   boxShadow: [
+                     BoxShadow(
+                       color: Colors.black.withValues(alpha: 0.05),
+                       blurRadius: 10,
+                       offset: const Offset(0, 4),
+                     ),
+                   ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Weighted GPA',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
+                    ),
+                    Switch.adaptive(
+                      value: _isWeighted,
+                      activeTrackColor: const Color(0xFF7C4DFF),
+                      onChanged: (value) {
+                        setState(() {
+                          _isWeighted = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
 
               Text(
                 'Your Courses (${_calculateTotalCourses()})',
@@ -210,7 +246,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                          BoxShadow(
-                           color: Colors.black.withOpacity(0.05),
+                           color: Colors.black.withValues(alpha: 0.05),
                            blurRadius: 10,
                            offset: const Offset(0, 4),
                          ),
@@ -312,7 +348,7 @@ class _HomePageState extends State<HomePage> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     );
@@ -332,10 +368,10 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2979FF).withOpacity(0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
+            color: const Color(0xFF2979FF).withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
                   ],
                 ),
                 child: Material(
@@ -385,7 +421,7 @@ class _HomePageState extends State<HomePage> {
         style: const TextStyle(fontSize: 14, color: Color(0xFF2D3436), fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+          hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           isDense: true,
@@ -401,7 +437,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: fontSize, color: const Color(0xFF2D3436), fontWeight: FontWeight.w500)))).toList(),
         onChanged: onChanged,
         decoration: InputDecoration(
