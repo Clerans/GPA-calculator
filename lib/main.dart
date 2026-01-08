@@ -1,121 +1,415 @@
 import 'package:flutter/material.dart';
+import 'course_model.dart';
+import 'semester_model.dart';
+import 'grade_converter.dart';
+import 'widgets/gradient_summary_card.dart';
+import 'services/pdf_service.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const GPACalculatorApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class GPACalculatorApp extends StatelessWidget {
+  const GPACalculatorApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'University GPA Calculator',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA), // Light Grey Modern Background
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+        ),
+        appBarTheme: const AppBarTheme(
+           backgroundColor: Colors.white,
+           elevation: 0,
+           scrolledUnderElevation: 0,
+           titleTextStyle: TextStyle(color: Color(0xFF2D3436), fontSize: 20, fontWeight: FontWeight.bold),
+           iconTheme: IconThemeData(color: Color(0xFF2D3436)),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> {
+  final List<Semester> _semesters = [];
+  bool _isWeighted = false;
 
-  void _incrementCounter() {
+  final List<String> _gradeOptions = [
+    'A+', 'A', 'A-', 
+    'B+', 'B', 'B-', 
+    'C+', 'C', 'C-',
+    'D', 'F'
+  ];
+
+  final List<String> _courseTypes = ['Regular', 'Honors', 'AP'];
+
+  @override
+  void initState() {
+    super.initState();
+    _addSemester();
+  }
+
+  void _addSemester() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _semesters.add(Semester(name: 'Semester ${_semesters.length + 1}'));
+      _addCourse(_semesters.last);
     });
+  }
+
+  void _addCourse(Semester semester) {
+    setState(() {
+      semester.courses.add(Course());
+    });
+  }
+
+  void _removeCourse(Semester semester, int index) {
+    setState(() {
+      semester.courses.removeAt(index);
+    });
+  }
+
+  double _calculateGPA() {
+    double totalPoints = 0;
+    double totalCredits = 0;
+
+    for (var semester in _semesters) {
+      for (var course in semester.courses) {
+        double credits = double.tryParse(course.creditsController.text) ?? 0;
+        if (credits <= 0) continue;
+
+        if (course.grade != null) {
+          double points = GradeConverter.convertToPoints(course.grade!);
+          
+          if (_isWeighted) {
+            if (course.courseType == 'Honors') {
+              points += 0.5;
+            } else if (course.courseType == 'AP') {
+              points += 1.0;
+            }
+          }
+
+          totalPoints += points * credits;
+          totalCredits += credits;
+        }
+      }
+    }
+
+    return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
+  }
+
+  double _calculateTotalCredits() {
+    double total = 0;
+    for (var semester in _semesters) {
+      for (var course in semester.courses) {
+        total += double.tryParse(course.creditsController.text) ?? 0;
+      }
+    }
+    return total;
+  }
+
+  int _calculateTotalCourses() {
+    int total = 0;
+    for (var semester in _semesters) {
+      total += semester.courses.length;
+    }
+    return total;
+  }
+
+  String _getLetterGrade(double gpa) {
+    if (gpa >= 4.0) return 'A+';
+    if (gpa >= 3.7) return 'A';
+    if (gpa >= 3.3) return 'B+'; // Approximation, usually mapped from points but simpler here
+    if (gpa >= 3.0) return 'B';
+    if (gpa >= 2.0) return 'C';
+    if (gpa >= 1.0) return 'D';
+    return gpa > 0 ? 'F' : '-';
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    double currentGPA = _calculateGPA();
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+             Text('GPA Calculator'),
+             Text('Track your academic progress', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
           ],
         ),
+        actions: [
+           IconButton(
+             icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF2D3436)),
+             onPressed: () async {
+                final pdfData = await PdfService.generatePdf(
+                  semesters: _semesters,
+                  cumulativeGpa: _calculateGPA(),
+                  isWeighted: _isWeighted,
+                );
+                await Printing.layoutPdf(
+                  onLayout: (PdfPageFormat format) async => pdfData,
+                  name: 'GPA_Report.pdf',
+                );
+             },
+           ),
+           const SizedBox(width: 8),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      // Removed FloatingActionButton to use standard UI or put in AppBar
+
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header / GPA Card
+              GradientSummaryCard(
+                gpa: currentGPA,
+                totalCredits: _calculateTotalCredits(),
+                letterGrade: _getLetterGrade(currentGPA),
+              ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Your Courses (${_calculateTotalCourses()})',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
+              ),
+              const SizedBox(height: 12),
+
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _semesters.length,
+                itemBuilder: (context, semesterIndex) {
+                  final semester = _semesters[semesterIndex];
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                         BoxShadow(
+                           color: Colors.black.withOpacity(0.05),
+                           blurRadius: 10,
+                           offset: const Offset(0, 4),
+                         ),
+                      ],
+                    ),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                semester.name.toUpperCase(),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4E586E)),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add, color: Color(0xFF26C6DA)), // Cyan
+                                onPressed: () => _addCourse(semester),
+                              ),
+                            ],
+                          ),
+                          const Divider(color: Colors.white), // Light divider looks engraved
+                          ...semester.courses.asMap().entries.map((entry) {
+                            int courseIndex = entry.key;
+                            Course course = entry.value;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: _buildModernField(course.nameController, 'Course Name'),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      IconButton(
+                                         icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                         onPressed: () => _removeCourse(semester, courseIndex),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      // Grade
+                                      Expanded(
+                                        flex: 2,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Grade', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                            const SizedBox(height: 4),
+                                            _buildModernDropdown(
+                                              course.grade,
+                                              _gradeOptions,
+                                              (v) => setState(() => course.grade = v),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Credits
+                                      Expanded(
+                                        flex: 2,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Credits', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                            const SizedBox(height: 4),
+                                            _buildModernField(
+                                              course.creditsController,
+                                              '0',
+                                              numeric: true,
+                                              onChanged: (v) => setState(() {}),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                         flex: 2,
+                                         child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Type', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                              const SizedBox(height: 4),
+                                              _buildModernDropdown(
+                                                course.courseType,
+                                                _courseTypes,
+                                                (v) => setState(() => course.courseType = v!),
+                                                fontSize: 12,
+                                              ),
+                                            ],
+                                         ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    );
+                },
+              ),
+
+              const SizedBox(height: 24),
+              
+              // Gradient Add Semester Button
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2979FF), Color(0xFF7C4DFF)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2979FF).withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _addSemester,
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.add, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Add Semester', 
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
+
+
+  Widget _buildModernField(TextEditingController controller, String hint, {bool numeric = false, Function(String)? onChanged}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: numeric ? TextInputType.number : TextInputType.text,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 14, color: Color(0xFF2D3436), fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernDropdown(String? value, List<String> items, Function(String?) onChanged, {String? hint, double fontSize = 14}) {
+     return Container(
+       decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: TextStyle(fontSize: fontSize, color: const Color(0xFF2D3436), fontWeight: FontWeight.w500)))).toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: hint,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF2D3436)),
       ),
     );
   }
