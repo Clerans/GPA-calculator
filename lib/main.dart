@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'course_model.dart';
-import 'course_model.dart';
 import 'grade_converter.dart';
 import 'summary_screen.dart';
 
@@ -43,6 +42,8 @@ class _HomePageState extends State<HomePage> {
     'C+', 'C', 'C-',
     'D', 'F'
   ];
+
+  double _gpa = 0.0;
 
   void _calculateGPA() {
     // Only calculate if form is valid or if we are just typing (parsing handles safety)
