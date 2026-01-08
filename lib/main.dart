@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'course_model.dart';
+import 'course_model.dart';
 import 'grade_converter.dart';
+import 'summary_screen.dart';
 
 
 void main() {
@@ -108,6 +110,29 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('University GPA Calculator'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.list_alt),
+            tooltip: 'Summary',
+            onPressed: () {
+               if (_formKey.currentState!.validate()) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SummaryScreen(
+                        gpa: _gpa,
+                        courses: _courses,
+                      ),
+                    ),
+                  );
+               } else {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                   const SnackBar(content: Text('Please fix errors before viewing summary')),
+                 );
+               }
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: BottomAppBar(
         child: Container(
@@ -116,7 +141,7 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Calculated GPA:',
+                'GPA:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
@@ -127,6 +152,27 @@ class _HomePageState extends State<HomePage> {
                   color: Colors.deepPurple,
                 ),
               ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SummaryScreen(
+                          gpa: _gpa,
+                          courses: _courses,
+                        ),
+                      ),
+                    );
+                  } else {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text('Fix errors first')),
+                     );
+                  }
+                },
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Summary'),
+              )
             ],
           ),
         ),
