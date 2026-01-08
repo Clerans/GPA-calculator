@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'course_model.dart';
 import 'semester_model.dart';
 import 'grade_converter.dart';
+import 'widgets/gpa_gauge.dart';
 
 void main() {
   runApp(const GPACalculatorApp());
@@ -116,48 +117,15 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header / GPA Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24.0),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Your GPA',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      currentGPA.toStringAsFixed(2),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildToggleOption('Weighted', _isWeighted),
-                          _buildToggleOption('Unweighted', !_isWeighted),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              GPAGauge(
+                gpa: currentGPA,
+                maxGpa: _isWeighted ? 5.0 : 4.0,
+                isWeighted: _isWeighted,
+                onToggleWeighted: (value) {
+                  setState(() {
+                    _isWeighted = value;
+                  });
+                },
               ),
               const SizedBox(height: 24),
 
@@ -272,29 +240,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildToggleOption(String text, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isWeighted = (text == 'Weighted');
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected ? Colors.purple : Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildTextField(TextEditingController controller, String hint, {bool numeric = false, Function(String)? onChanged}) {
     return TextField(
