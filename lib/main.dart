@@ -3,6 +3,9 @@ import 'course_model.dart';
 import 'semester_model.dart';
 import 'grade_converter.dart';
 import 'widgets/gpa_gauge.dart';
+import 'services/pdf_service.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 
 void main() {
   runApp(const GPACalculatorApp());
@@ -110,6 +113,21 @@ class _HomePageState extends State<HomePage> {
     double currentGPA = _calculateGPA();
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final pdfData = await PdfService.generatePdf(
+            semesters: _semesters,
+            cumulativeGpa: _calculateGPA(),
+            isWeighted: _isWeighted,
+          );
+          await Printing.layoutPdf(
+            onLayout: (PdfPageFormat format) async => pdfData,
+            name: 'GPA_Report.pdf',
+          );
+        },
+        icon: const Icon(Icons.picture_as_pdf),
+        label: const Text('Export PDF'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -170,13 +188,11 @@ class _HomePageState extends State<HomePage> {
                               padding: const EdgeInsets.only(bottom: 8.0),
                               child: Row(
                                 children: [
-                                  // Name
                                   Expanded(
                                     flex: 3,
                                     child: _buildTextField(course.nameController, 'Name'),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Grade
+                                  const SizedBox(width: 4),
                                   Expanded(
                                     flex: 2,
                                     child: _buildDropdown(
@@ -184,10 +200,10 @@ class _HomePageState extends State<HomePage> {
                                       _gradeOptions,
                                       (v) => setState(() => course.grade = v),
                                       hint: 'Gr',
+                                      fontSize: 12,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Credits
+                                  const SizedBox(width: 4),
                                   Expanded(
                                     flex: 2,
                                     child: _buildTextField(
@@ -197,21 +213,20 @@ class _HomePageState extends State<HomePage> {
                                       onChanged: (v) => setState(() {}),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Type
+                                  const SizedBox(width: 4),
                                   Expanded(
                                     flex: 3,
                                     child: _buildDropdown(
                                       course.courseType,
                                       _courseTypes,
                                       (v) => setState(() => course.courseType = v!),
-                                      fontSize: 12,
+                                      fontSize: 10,
                                     ),
                                   ),
                                   IconButton(
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(),
-                                    icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                                    icon: const Icon(Icons.close, color: Colors.red, size: 20),
                                     onPressed: () => _removeCourse(semester, courseIndex),
                                   ),
                                 ],
