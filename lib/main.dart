@@ -31,6 +31,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final _formKey = GlobalKey<FormState>();
   final List<Course> _courses = [];
 
   // Standard Grading Scale
@@ -41,14 +42,22 @@ class _HomePageState extends State<HomePage> {
     'D', 'F'
   ];
 
-  double _gpa = 0.0;
-
   void _calculateGPA() {
+    // Only calculate if form is valid or if we are just typing (parsing handles safety)
+    // However, specifically for the final GPA to be meaningful, inputs should be valid.
+    // For real-time updates, we can try to parse. 
+    // If strict validation is required before showing GPA, we check formKey.currentState.validate()
+    // But validating on every keystroke might be annoying visually if fields turn red while typing.
+    // Let's rely on individual field validation for UI feedback, and best-effort calculation.
+    
     double totalPoints = 0;
     double totalCredits = 0;
 
     for (var course in _courses) {
       double credits = double.tryParse(course.creditsController.text) ?? 0;
+      // Skip if credits are 0 or less (effectively invalid for GPA)
+      if (credits <= 0) continue; 
+      
       if (course.grade != null) {
         double points = GradeConverter.convertToPoints(course.grade!);
         totalPoints += points * credits;
@@ -72,17 +81,12 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _courses.add(Course());
     });
-  }
-
-  void _removeCourse(int index) {
-    });
-    // Add listener to calculate GPA on credit change
     _courses.last.creditsController.addListener(_calculateGPA);
   }
 
   void _removeCourse(int index) {
+    _courses[index].creditsController.removeListener(_calculateGPA);
     setState(() {
-      _courses[index].creditsController.removeListener(_calculateGPA);
       _courses.removeAt(index);
       _calculateGPA();
     });
@@ -134,81 +138,107 @@ class _HomePageState extends State<HomePage> {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _courses.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Course Name Input
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            controller: _courses[index].nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Course Name',
-                              hintText: 'e.g. Math 101',
-                              border: OutlineInputBorder(),
+          : Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16.0),
+                itemCount: _courses.length,
+                itemBuilder: (context, index) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12.0),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Course Name Input
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _courses[index].nameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Course Name',
+                                hintText: 'e.g. Math 101',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        
-                        // Credits Input
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: _courses[index].creditsController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Credits',
-                              hintText: '3',
-                              border: OutlineInputBorder(),
+                          const SizedBox(width: 8),
+                          
+                          // Credits Input
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: _courses[index].creditsController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Credits',
+                                hintText: '3',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Required';
+                                }
+                                final v = double.tryParse(value);
+                                if (v == null || v <= 0) {
+                                  return 'Valid > 0';
+                                }
+                                return null;
+                              },
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 8),
 
-                        // Grade Dropdown
-                        Expanded(
-                          flex: 2,
-                          child: DropdownButtonFormField<String>(
-                            value: _courses[index].grade,
-                            decoration: const InputDecoration(
-                              labelText: 'Grade',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                          // Grade Dropdown
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              value: _courses[index].grade,
+                              decoration: const InputDecoration(
+                                labelText: 'Grade',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                              ),
+                              items: _gradeOptions.map((String grade) {
+                                return DropdownMenuItem<String>(
+                                  value: grade,
+                                  child: Text(grade),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _courses[index].grade = newValue;
+                                  _calculateGPA();
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Select';
+                                }
+                                return null;
+                              },
                             ),
-                            items: _gradeOptions.map((String grade) {
-                              return DropdownMenuItem<String>(
-                                value: grade,
-                                child: Text(grade),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                _courses[index].grade = newValue;
-                                _calculateGPA();
-                              });
-                            },
                           ),
-                        ),
-                        
-                        // Delete Button
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _removeCourse(index),
-                        ),
-                      ],
+                          
+                          // Delete Button
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removeCourse(index),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addCourse,
