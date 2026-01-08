@@ -16,6 +16,8 @@ class GradeConverter {
         return 2.3;
       case 'C':
         return 2.0;
+      case 'C-':
+        return 1.7;
       case 'D':
         return 1.0;
       case 'F':

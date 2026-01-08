@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'course_model.dart';
+import 'grade_converter.dart';
+
 
 void main() {
   runApp(const GPACalculatorApp());
@@ -35,9 +37,29 @@ class _HomePageState extends State<HomePage> {
   final List<String> _gradeOptions = [
     'A+', 'A', 'A-', 
     'B+', 'B', 'B-', 
-    'C+', 'C', 
+    'C+', 'C', 'C-',
     'D', 'F'
   ];
+
+  double _gpa = 0.0;
+
+  void _calculateGPA() {
+    double totalPoints = 0;
+    double totalCredits = 0;
+
+    for (var course in _courses) {
+      double credits = double.tryParse(course.creditsController.text) ?? 0;
+      if (course.grade != null) {
+        double points = GradeConverter.convertToPoints(course.grade!);
+        totalPoints += points * credits;
+        totalCredits += credits;
+      }
+    }
+
+    setState(() {
+      _gpa = totalCredits > 0 ? totalPoints / totalCredits : 0.0;
+    });
+  }
 
   @override
   void initState() {
@@ -53,8 +75,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _removeCourse(int index) {
+    });
+    // Add listener to calculate GPA on credit change
+    _courses.last.creditsController.addListener(_calculateGPA);
+  }
+
+  void _removeCourse(int index) {
     setState(() {
+      _courses[index].creditsController.removeListener(_calculateGPA);
       _courses.removeAt(index);
+      _calculateGPA();
     });
   }
 
@@ -74,6 +104,28 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('University GPA Calculator'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      bottomNavigationBar: BottomAppBar(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Calculated GPA:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                _gpa.toStringAsFixed(2),
+                style: const TextStyle(
+                  fontSize: 24, 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: _courses.isEmpty
           ? Center(
@@ -141,6 +193,7 @@ class _HomePageState extends State<HomePage> {
                             onChanged: (String? newValue) {
                               setState(() {
                                 _courses[index].grade = newValue;
+                                _calculateGPA();
                               });
                             },
                           ),

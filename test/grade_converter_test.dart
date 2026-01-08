@@ -35,6 +35,10 @@ void main() {
       expect(GradeConverter.convertToPoints('C'), 2.0);
     });
 
+    test('C- should return 1.7', () {
+      expect(GradeConverter.convertToPoints('C-'), 1.7);
+    });
+
     test('D should return 1.0', () {
       expect(GradeConverter.convertToPoints('D'), 1.0);
     });
