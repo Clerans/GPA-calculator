@@ -1,16 +1,49 @@
-# gpa_calculator
+# University GPA Calculator 🎓
 
-A new Flutter project.
+A modern, beautiful Flutter application for tracking academic progress. This app allows students to manage their semesters, calculate Cumulative GPA (Weighted/Unweighted), and export detailed PDF reports.
 
-## Getting Started
+## ✨ Features
 
-This project is a starting point for a Flutter application.
+- **Modern Gradient UI**: A stunning Blue-Purple gradient design with clean, white implementation cards.
+- **Dynamic Semester Management**: Add multiple semesters and unlimited courses per semester.
+- **GPA Calculation**:
+  - Real-time Cumulative GPA updates.
+  - Support for **Weighted** (add 0.5 for Honors, 1.0 for AP) and **Unweighted** GPA scales.
+- **PDF Export**: Generate and share a professional PDF report of your academic record.
+- **Course Types**: Distinguish between Regular, Honors, and AP courses.
+- **Visual Feedback**: Vibrant visual summary of your current standing.
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🚀 Getting Started
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Prerequisites
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) installed.
+- Android Studio / VS Code with Flutter extensions.
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/gpa-calculator.git
+   cd gpa-calculator
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Run the App**
+   ```bash
+   flutter run
+   ```
+
+## 🛠️ Tech Stack
+
+- **Framework**: Flutter & Dart
+- **UI Design**: Custom "Modern Gradient" Design System
+- **Packages**:
+  - [`pdf`](https://pub.dev/packages/pdf): For document creation.
+  - [`printing`](https://pub.dev/packages/printing): For PDF preview and sharing.
+  - [`cupertino_icons`](https://pub.dev/packages/cupertino_icons): iOS style icons.
+
