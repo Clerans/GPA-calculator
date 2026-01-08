@@ -44,7 +44,7 @@ class NeumorphicContainer extends StatelessWidget {
         // For simplicity/performance in this iteration, "isPressed" removes elevation
         // or we could add a subtle inner border or color shift.
         border: isPressed 
-          ? Border.all(color: Colors.white.withOpacity(0.5), width: 1)
+          ? Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1)
           : null,
       ),
       child: child,
