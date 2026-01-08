@@ -26,7 +26,7 @@ class GradientSummaryCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2979FF).withOpacity(0.3),
+            color: const Color(0xFF2979FF).withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

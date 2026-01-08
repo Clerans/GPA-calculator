@@ -176,13 +176,7 @@ class _GaugePainter extends CustomPainter {
     );
 
     // Foreground Gradient
-    final gradient = SweepGradient(
-      colors: gradientColors,
-      startAngle: startAngle,
-      endAngle: startAngle + sweepAngle,
-      transform: GradientRotation(0), // rotation handled by arc start
-      tileMode: TileMode.clamp, // important for sweep
-    );
+
     // Actually sweep gradient is tricky to align perfectly with start/end angularly without rotation.
     // simpler method for gradient on arc: use Shader
     
