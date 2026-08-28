@@ -58,17 +58,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Semester> _semesters = [];
-  bool _isWeighted = false;
   bool _isLoading = true;
 
+  // Sri Lankan University Standard Grading System
   final List<String> _gradeOptions = [
     'A+', 'A', 'A-',
     'B+', 'B', 'B-',
     'C+', 'C', 'C-',
-    'D', 'F'
+    'D+', 'D',
+    'E', 'F'
   ];
-
-  final List<String> _courseTypes = ['Regular', 'Honors', 'AP'];
 
   @override
   void initState() {
@@ -82,7 +81,6 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         if (savedData != null && savedData.semesters.isNotEmpty) {
           _semesters = savedData.semesters;
-          _isWeighted = savedData.isWeighted;
         } else {
           _semesters = [
             Semester(
@@ -90,7 +88,6 @@ class _HomePageState extends State<HomePage> {
               courses: [Course()],
             ),
           ];
-          _isWeighted = false;
         }
         _isLoading = false;
       });
@@ -98,10 +95,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _saveData() {
-    StorageService.saveData(
-      semesters: _semesters,
-      isWeighted: _isWeighted,
-    );
+    StorageService.saveData(semesters: _semesters);
   }
 
   void _addSemester() {
@@ -162,7 +156,7 @@ class _HomePageState extends State<HomePage> {
           controller: nameController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'e.g. Fall 2024, Year 1 Sem 2',
+            hintText: 'e.g. Year 1 Sem 1, Fall 2024',
             border: OutlineInputBorder(),
           ),
         ),
@@ -222,7 +216,6 @@ class _HomePageState extends State<HomePage> {
                 _semesters = [
                   Semester(name: 'Semester 1', courses: [Course()]),
                 ];
-                _isWeighted = false;
               });
               _saveData();
             },
@@ -244,15 +237,6 @@ class _HomePageState extends State<HomePage> {
 
         if (course.grade != null) {
           double points = GradeConverter.convertToPoints(course.grade!);
-
-          if (_isWeighted) {
-            if (course.courseType == 'Honors') {
-              points += 0.5;
-            } else if (course.courseType == 'AP') {
-              points += 1.0;
-            }
-          }
-
           totalPoints += points * credits;
           totalCredits += credits;
         }
@@ -272,10 +256,6 @@ class _HomePageState extends State<HomePage> {
 
       if (course.grade != null) {
         double points = GradeConverter.convertToPoints(course.grade!);
-        if (_isWeighted) {
-          if (course.courseType == 'Honors') points += 0.5;
-          if (course.courseType == 'AP') points += 1.0;
-        }
         totalPoints += points * credits;
         totalCredits += credits;
       }
@@ -307,6 +287,8 @@ class _HomePageState extends State<HomePage> {
     if (gpa >= 3.7) return 'A';
     if (gpa >= 3.3) return 'B+';
     if (gpa >= 3.0) return 'B';
+    if (gpa >= 2.7) return 'B-';
+    if (gpa >= 2.3) return 'C+';
     if (gpa >= 2.0) return 'C';
     if (gpa >= 1.0) return 'D';
     return gpa > 0 ? 'F' : '-';
@@ -321,30 +303,30 @@ class _HomePageState extends State<HomePage> {
     }
 
     double currentGPA = _calculateGPA();
+    String degreeClass = GradeConverter.getDegreeClassification(currentGPA);
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            Text('GPA Calculator'),
-            Text('Track & manage multiple semesters',
+            Text('University GPA Calculator'),
+            Text('Honours Degree & Semester Tracker',
                 style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Export PDF',
+            tooltip: 'Export Transcript PDF',
             icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF2D3436)),
             onPressed: () async {
               final pdfData = await PdfService.generatePdf(
                 semesters: _semesters,
                 cumulativeGpa: _calculateGPA(),
-                isWeighted: _isWeighted,
               );
               await Printing.layoutPdf(
                 onLayout: (PdfPageFormat format) async => pdfData,
-                name: 'GPA_Report.pdf',
+                name: 'Academic_GPA_Report.pdf',
               );
             },
           ),
@@ -377,87 +359,30 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header / GPA Card
+              // GPA & Honours Classification Summary Card
               GradientSummaryCard(
                 gpa: currentGPA,
                 totalCredits: _calculateTotalCredits(),
                 letterGrade: _getLetterGrade(currentGPA),
+                degreeClassification: degreeClass,
               ),
               const SizedBox(height: 20),
 
-              // Weighted Toggle & Auto-saved Indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6C5CE7).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.tune, color: Color(0xFF6C5CE7), size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Weighted GPA',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
-                            ),
-                            Text(
-                              'Honors (+0.5), AP (+1.0)',
-                              style: TextStyle(fontSize: 11, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Switch.adaptive(
-                      value: _isWeighted,
-                      activeTrackColor: const Color(0xFF6C5CE7),
-                      onChanged: (value) {
-                        setState(() {
-                          _isWeighted = value;
-                        });
-                        _saveData();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
+              // Semesters Header with Local Auto-Save Indicator
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Semesters (${_semesters.length}) • Courses (${_calculateTotalCourses()})',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D3436)),
                   ),
                   Row(
                     children: const [
-                      Icon(Icons.cloud_done_outlined, size: 14, color: Colors.green),
+                      Icon(Icons.check_circle_outline, size: 15, color: Color(0xFF00B894)),
                       SizedBox(width: 4),
                       Text(
-                        'Saved locally',
-                        style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500),
+                        'Saved Locally',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF00B894), fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -465,6 +390,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 12),
 
+              // Semesters List
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -481,7 +407,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -490,7 +416,7 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Semester Header with Edit Name, GPA badge, Add Course, and Delete Semester
+                        // Semester Header: Name, GPA badge, Add Course, Delete
                         Row(
                           children: [
                             Expanded(
@@ -519,7 +445,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             ),
-                            // Semester GPA Badge
+                            // Per Semester GPA Badge
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
@@ -527,7 +453,7 @@ class _HomePageState extends State<HomePage> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                'GPA: ${semGPA.toStringAsFixed(2)}',
+                                'Sem GPA: ${semGPA.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -536,9 +462,9 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            // Add Course to Semester Button
+                            // Add Course Button
                             IconButton(
-                              tooltip: 'Add Course',
+                              tooltip: 'Add Subject',
                               icon: const Icon(Icons.add_circle, color: Color(0xFF00B894)),
                               onPressed: () => _addCourse(semester),
                             ),
@@ -560,7 +486,7 @@ class _HomePageState extends State<HomePage> {
                               child: TextButton.icon(
                                 onPressed: () => _addCourse(semester),
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Add your first course to this semester'),
+                                label: const Text('Add your first subject to this semester'),
                               ),
                             ),
                           ),
@@ -575,18 +501,15 @@ class _HomePageState extends State<HomePage> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      flex: 3,
                                       child: _buildModernField(
                                         course.nameController,
-                                        'Course / Subject Name',
-                                        onChanged: (v) {
-                                          _saveData();
-                                        },
+                                        'Subject / Module Name',
+                                        onChanged: (v) => _saveData(),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
-                                      tooltip: 'Remove Course',
+                                      tooltip: 'Remove Subject',
                                       icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
                                       onPressed: () => _removeCourse(semester, courseIndex),
                                     ),
@@ -595,9 +518,9 @@ class _HomePageState extends State<HomePage> {
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    // Grade
+                                    // Grade Dropdown
                                     Expanded(
-                                      flex: 2,
+                                      flex: 3,
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -610,13 +533,13 @@ class _HomePageState extends State<HomePage> {
                                               setState(() => course.grade = v);
                                               _saveData();
                                             },
-                                            hint: 'Select',
+                                            hint: 'Grade (e.g. A, B+)',
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
-                                    // Credits
+                                    const SizedBox(width: 12),
+                                    // Credits Field
                                     Expanded(
                                       flex: 2,
                                       child: Column(
@@ -626,33 +549,12 @@ class _HomePageState extends State<HomePage> {
                                           const SizedBox(height: 4),
                                           _buildModernField(
                                             course.creditsController,
-                                            '0',
+                                            '3',
                                             numeric: true,
                                             onChanged: (v) {
                                               setState(() {});
                                               _saveData();
                                             },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    // Course Type
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text('Type', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                                          const SizedBox(height: 4),
-                                          _buildModernDropdown(
-                                            course.courseType,
-                                            _courseTypes,
-                                            (v) {
-                                              setState(() => course.courseType = v!);
-                                              _saveData();
-                                            },
-                                            fontSize: 12,
                                           ),
                                         ],
                                       ),
