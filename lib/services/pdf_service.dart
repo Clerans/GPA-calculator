@@ -8,18 +8,18 @@ class PdfService {
   static Future<Uint8List> generatePdf({
     required List<Semester> semesters,
     required double cumulativeGpa,
-    required bool isWeighted,
   }) async {
     final pdf = pw.Document();
+    final classification = GradeConverter.getDegreeClassification(cumulativeGpa);
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context context) {
           return [
-            _buildHeader(cumulativeGpa, isWeighted),
+            _buildHeader(cumulativeGpa, classification),
             pw.SizedBox(height: 20),
-            ...semesters.map((semester) => _buildSemesterTable(semester, isWeighted)),
+            ...semesters.map((semester) => _buildSemesterTable(semester)),
             pw.Divider(),
             pw.Align(
               alignment: pw.Alignment.centerRight,
@@ -36,9 +36,9 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildHeader(double gpa, bool isWeighted) {
+  static pw.Widget _buildHeader(double gpa, String classification) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: PdfColors.blueGrey50,
         borderRadius: pw.BorderRadius.circular(8),
@@ -49,17 +49,18 @@ class PdfService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('University GPA Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.Text(isWeighted ? 'Weighted GPA' : 'Unweighted GPA', style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+              pw.Text('University Academic Transcript Report', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text('Classification: $classification', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text('Cumulative GPA', style: const pw.TextStyle(fontSize: 12)),
+              pw.Text('Cumulative GPA', style: const pw.TextStyle(fontSize: 11)),
               pw.Text(
                 gpa.toStringAsFixed(2),
-                style: pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800),
+                style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800),
               ),
             ],
           ),
@@ -68,38 +69,30 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildSemesterTable(Semester semester, bool isWeighted) {
-    // Calculate semester headers or stats if needed
-    
+  static pw.Widget _buildSemesterTable(Semester semester) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(semester.name.toUpperCase(), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+        pw.Text(semester.name.toUpperCase(), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
         pw.SizedBox(height: 5),
         pw.TableHelper.fromTextArray(
-          headers: ['Course', 'Credits', 'Type', 'Grade', 'Points'],
+          headers: ['Subject / Course', 'Credits', 'Grade', 'Grade Point'],
           border: null,
           headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
           headerDecoration: const pw.BoxDecoration(color: PdfColors.blue600),
           rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300))),
           cellAlignment: pw.Alignment.centerLeft,
-          cellPadding: const pw.EdgeInsets.all(5),
+          cellPadding: const pw.EdgeInsets.all(6),
           data: semester.courses.map((course) {
             double points = 0.0;
             if (course.grade != null) {
-               points = GradeConverter.convertToPoints(course.grade!);
-               if (isWeighted) {
-                 if (course.courseType == 'Honors') points += 0.5;
-                 if (course.courseType == 'AP') points += 1.0;
-               }
+              points = GradeConverter.convertToPoints(course.grade!);
             }
-            // format
             return [
-              course.nameController.text.isNotEmpty ? course.nameController.text : 'Unknown',
-              course.creditsController.text,
-              course.courseType,
+              course.nameController.text.isNotEmpty ? course.nameController.text : 'Course',
+              course.creditsController.text.isNotEmpty ? course.creditsController.text : '0',
               course.grade ?? '-',
-              points.toStringAsFixed(1), // weighted points
+              points.toStringAsFixed(2),
             ];
           }).toList(),
         ),
