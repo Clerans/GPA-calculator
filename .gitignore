@@ -50,3 +50,5 @@ android/local.properties
 .vscode/
 .env
 .env.*
+# Widget Preview related
+.widget_preview/
